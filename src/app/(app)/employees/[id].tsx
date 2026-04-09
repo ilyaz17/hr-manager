@@ -1,101 +1,106 @@
 import { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, ScrollView, TouchableOpacity,
+  Alert, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEmployees } from '../../../hooks/useEmployees';
+import { useEmployees, EmployeeInput } from '../../../hooks/useEmployees';
+import { FormField } from '../../../components/ui/FormField';
+import { SectionHeader } from '../../../components/ui/SectionHeader';
+import { PrimaryButton } from '../../../components/ui/PrimaryButton';
+import { Colors } from '../../../constants/colors';
 
-const Field = ({
-  label,
-  value,
-  onChange,
-  keyboardType,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  keyboardType?: any;
-}) => (
-  <View className="mb-4">
-    <Text className="text-sm font-medium text-gray-700 mb-1">{label}</Text>
-    <TextInput
-      className="border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
-      value={value}
-      onChangeText={onChange}
-      placeholder={label}
-      keyboardType={keyboardType ?? 'default'}
-    />
-  </View>
-);
+const EMPTY: EmployeeInput = {
+  name: '', dob: '', gender: '', phone: '', email: '', address: '',
+  employeeId: '', designation: '', department: '', joinDate: '', employmentType: '',
+  basicSalary: '', allowance: '', deduction: '', bankName: '', accountNumber: '',
+};
 
 export default function EditEmployeeScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getEmployee, updateEmployee } = useEmployees();
-  const [form, setForm] = useState({
-    name: '',
-    role: '',
-    department: '',
-    email: '',
-    phone: '',
-  });
+  const { getEmployee, updateEmployee, deleteEmployee } = useEmployees();
+  const [form, setForm] = useState<EmployeeInput>(EMPTY);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const emp = getEmployee(id);
     if (emp) {
-      setForm({
-        name: emp.name,
-        role: emp.role,
-        department: emp.department,
-        email: emp.email,
-        phone: emp.phone,
-      });
+      const { id: _id, ...rest } = emp;
+      setForm(rest);
     }
   }, [id]);
 
-  const set = (key: string) => (val: string) => setForm((f) => ({ ...f, [key]: val }));
+  const set = (key: keyof EmployeeInput) => (val: string) =>
+    setForm((f) => ({ ...f, [key]: val }));
 
-  const handleSave = async () => {
-    if (!form.name.trim() || !form.role.trim()) {
-      Alert.alert('Error', 'Name and Role are required.');
+  const handleSave = () => {
+    if (!form.name.trim() || !form.designation.trim()) {
+      Alert.alert('Required', 'Name and Designation are required.');
       return;
     }
-    await updateEmployee(id, form);
+    setSaving(true);
+    updateEmployee(id, form);
+    setSaving(false);
     router.back();
   };
 
+  const handleDelete = () => {
+    Alert.alert('Delete Employee', `Remove ${form.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: () => { deleteEmployee(id); router.replace('/(app)/employees'); },
+      },
+    ]);
+  };
+
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Field label="Full Name" value={form.name} onChange={set('name')} />
-        <Field label="Role" value={form.role} onChange={set('role')} />
-        <Field label="Department" value={form.department} onChange={set('department')} />
-        <Field label="Email" value={form.email} onChange={set('email')} keyboardType="email-address" />
-        <Field label="Phone" value={form.phone} onChange={set('phone')} keyboardType="phone-pad" />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
+      {/* Header */}
+      <View style={{ backgroundColor: Colors.primary, paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+            <Text style={{ color: Colors.white, fontSize: 22 }}>←</Text>
+          </TouchableOpacity>
+          <Text style={{ color: Colors.white, fontSize: 20, fontWeight: '800' }}>Edit Employee</Text>
+        </View>
         <TouchableOpacity
-          className="bg-blue-600 rounded-xl py-4 items-center mt-2"
-          onPress={handleSave}
+          onPress={handleDelete}
+          style={{ backgroundColor: 'rgba(244,67,54,0.2)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
         >
-          <Text className="text-white font-semibold text-base">Save Changes</Text>
+          <Text style={{ color: '#FFCDD2', fontWeight: '700', fontSize: 13 }}>Delete</Text>
         </TouchableOpacity>
+      </View>
 
-        <TouchableOpacity
-          className="rounded-xl py-4 items-center mt-2"
-          onPress={() => router.back()}
-        >
-          <Text className="text-gray-500 text-base">Cancel</Text>
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+        <SectionHeader title="Personal Details" />
+        <FormField label="Full Name *" value={form.name} onChangeText={set('name')} />
+        <FormField label="Date of Birth" value={form.dob} onChangeText={set('dob')} placeholder="DD/MM/YYYY" />
+        <FormField label="Gender" value={form.gender} onChangeText={set('gender')} />
+        <FormField label="Phone" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+        <FormField label="Email" value={form.email} onChangeText={set('email')} keyboardType="email-address" />
+        <FormField label="Address" value={form.address} onChangeText={set('address')} multiline numberOfLines={2} />
+
+        <SectionHeader title="Work Details" />
+        <FormField label="Employee ID" value={form.employeeId} onChangeText={set('employeeId')} />
+        <FormField label="Designation *" value={form.designation} onChangeText={set('designation')} />
+        <FormField label="Department" value={form.department} onChangeText={set('department')} />
+        <FormField label="Join Date" value={form.joinDate} onChangeText={set('joinDate')} placeholder="DD/MM/YYYY" />
+        <FormField label="Employment Type" value={form.employmentType} onChangeText={set('employmentType')} />
+
+        <SectionHeader title="Salary Details" />
+        <FormField label="Basic Salary" value={form.basicSalary} onChangeText={set('basicSalary')} keyboardType="numeric" />
+        <FormField label="Allowance" value={form.allowance} onChangeText={set('allowance')} keyboardType="numeric" />
+        <FormField label="Deduction" value={form.deduction} onChangeText={set('deduction')} keyboardType="numeric" />
+        <FormField label="Bank Name" value={form.bankName} onChangeText={set('bankName')} />
+        <FormField label="Account Number" value={form.accountNumber} onChangeText={set('accountNumber')} keyboardType="numeric" />
+
+        <PrimaryButton label="Save Changes" onPress={handleSave} loading={saving} />
+        <PrimaryButton label="Cancel" onPress={() => router.back()} variant="outline" />
       </ScrollView>
     </KeyboardAvoidingView>
   );
