@@ -19,7 +19,6 @@ export function useAuth() {
   }, []);
 
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
-    // Simple local auth — replace with real API call as needed
     if (!username.trim() || !password.trim()) return false;
     const authUser: AuthUser = { username: username.trim() };
     await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
