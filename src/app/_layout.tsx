@@ -1,16 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useAuth } from '../hooks/useAuth';
+import { View, ActivityIndicator } from 'react-native';
+import '../global.css';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+export default function RootLayout() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (loading) return;
+    const inAuth = segments[0] === '(auth)';
+    if (!user && !inAuth) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuth) {
+      router.replace('/(app)/employees');
+    }
+  }, [user, loading, segments]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(app)" />
+    </Stack>
   );
 }
