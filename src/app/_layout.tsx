@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import { View, ActivityIndicator } from 'react-native';
+import { Colors } from '../constants/colors';
 import '../global.css';
 
 export default function RootLayout() {
@@ -15,14 +16,14 @@ export default function RootLayout() {
     if (!user && !inAuth) {
       router.replace('/(auth)/login');
     } else if (user && inAuth) {
-      router.replace('/(app)/employees');
+      router.replace('/(app)/dashboard');
     }
   }, [user, loading, segments]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
