@@ -1,40 +1,44 @@
 # HR Manager App – Development Checklist
 
 ## Core Features
-- [ ] Employee directory screen (list + search)
-- [ ] Employee profile screen (view/edit details)
-- [ ] Leave-request flow (form, approvals, calendar)
-- [ ] Payroll & payslip screen
-- [ ] Attendance / clock-in screen
-- [ ] Settings screen (profile, notifications)
+- [x] Employee directory screen (list + search)
+- [x] Employee profile screen (view/edit details)
+- [x] Leave Management module (list, request, approve/reject, calendar)
+- [x] Payroll & payslip screen
+- [x] Attendance / clock-in screen
+- [x] Settings screen (profile, notifications)
 
 ## UI / UX
-- [ ] Apply NativeWind v4 styling consistently
-- [ ] Use Expo Router file-based conventions
-- [ ] Add splash screen & app icon (done!)
-- [ ] Implement dark-mode support
-- [ ] Add accessible labels & touch targets
+- [x] Apply NativeWind v4 styling consistently
+- [x] Use Expo Router file-based conventions
+- [x] Add splash screen & app icon (done!)
+- [x] Implement dark-mode support
+- [ ] Create comprehensive documentation
+- [ ] Add error handling and loading states
+- [ ] Implement offline support
+- [ ] Add animations and transitions
 
-## Backend / API
-- [ ] Connect to mock REST / GraphQL endpoint
-- [ ] Add auth flow (login / token refresh)
-- [ ] Implement data caching / offline support
-- [ ] Add error handling & retry logic
+## Backend Integration
+- [ ] Set up REST API or GraphQL backend
+- [ ] Implement authentication system
+- [ ] Create database schema
+- [ ] Implement file storage (contracts, payslips)
+- [ ] Set up webhook notifications
 
 ## Testing
-- [ ] Write unit tests for utils & hooks
-- [ ] Add integration tests with Jest/React Native Testing Library
-- [ ] Configure ESLint & Prettier (setup scripts already present)
+- [ ] Write unit tests for components
+- [ ] Write integration tests for flows
+- [ ] Test on multiple devices
+- [ ] Performance testing
 
 ## Deployment
-- [ ] Set up Expo EAS builds for Android & iOS
-- [ ] Create release notes & version bump script
-- [ ] Submit to Google Play & Apple App Store
+- [ ] Configure CI/CD pipeline
+- [ ] Set up cloud hosting
+- [ ] Configure Google Play Store listing
+- [ ] Configure App Store listing
 
 ## Documentation
-- [ ] Write API contract docs
-- [ ] Add onboarding screenshots to README
-- [ ] Update contributing guidelines
-
----
-*Tip: Use `npm run reset-project` to start fresh with a blank `/app` folder.*
+- [ ] API documentation
+- [ ] User guide
+- [ ] Developer guide
+- [ ] Deployment guide
