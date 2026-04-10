@@ -1,12 +1,14 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, StyleSheet, Pressable } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/colors';
-import { exportPayslipToExcel } from '../../utils/excelUtils';
+import { exportPayslip, exportAttendanceData, exportPerformanceReviews, exportRecord } from '../../utils/export';
+import { sendPayslipNotification, sendLeaveApprovalNotification, sendPerformanceReviewNotification } from '../../utils/useNotifications';
 
 interface Payslip {
   id: string;
   employeeName: string;
+  employeeId: string;
   period: string;
   payDate: string;
   grossPay: number;
@@ -16,23 +18,17 @@ interface Payslip {
   status: 'paid' | 'pending' | 'late';
 }
 
-interface SalaryRecord {
-  id: string;
-  year: string;
-  month: string;
-  totalEmployees: number;
-  totalPayroll: number;
-  averageSalary: number;
-  maxSalary: number;
-  minSalary: number;
-}
-
 export default function PayrollScreen() {
   const [activeTab, setActiveTab] = useState<'payslips' | 'summary'>('payslips');
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'both' | null>(null);
+
   const [payslips, setPayslips] = useState<Payslip[]>([
     {
       id: '1',
       employeeName: 'Rahul Sharma',
+      employeeId: 'EMP001',
       period: 'March 2026',
       payDate: '2026-04-01',
       grossPay: 45000,
@@ -44,6 +40,7 @@ export default function PayrollScreen() {
     {
       id: '2',
       employeeName: 'Priya Patel',
+      employeeId: 'EMP002',
       period: 'March 2026',
       payDate: '2026-04-02',
       grossPay: 42000,
@@ -55,6 +52,7 @@ export default function PayrollScreen() {
     {
       id: '3',
       employeeName: 'Amit Kumar',
+      employeeId: 'EMP003',
       period: 'March 2026',
       payDate: '2026-04-03',
       grossPay: 55000,
@@ -62,39 +60,6 @@ export default function PayrollScreen() {
       deductions: 5200,
       benefits: 2700,
       status: 'pending',
-    },
-  ]);
-
-  const [salarySummary, setSalarySummary] = useState<SalaryRecord[]>([
-    {
-      id: '1',
-      year: '2026',
-      month: 'March',
-      totalEmployees: 15,
-      totalPayroll: 675000,
-      averageSalary: 45000,
-      maxSalary: 65000,
-      minSalary: 35000,
-    },
-    {
-      id: '2',
-      year: '2026',
-      month: 'February',
-      totalEmployees: 15,
-      totalPayroll: 672000,
-      averageSalary: 44800,
-      maxSalary: 64000,
-      minSalary: 34800,
-    },
-    {
-      id: '3',
-      year: '2025',
-      month: 'December',
-      totalEmployees: 14,
-      totalPayroll: 630000,
-      averageSalary: 45000,
-      maxSalary: 60000,
-      minSalary: 35000,
     },
   ]);
 
@@ -120,173 +85,353 @@ export default function PayrollScreen() {
     return '₹' + value.toLocaleString('en-IN');
   };
 
-  const handleExportPayslip = async (payslip: Payslip) => {
-    try {
-      // Prepare payslip data for export
-      const payslipData = {
-        employeeName: payslip.employeeName,
-        employeeId: payslip.id,
-        period: payslip.period,
-        payDate: payslip.payDate,
-        grossPay: payslip.grossPay,
-        netPay: payslip.netPay,
-        deductions: payslip.deductions,
-        benefits: payslip.benefits,
-        totalDeductions: payslip.deductions + payslip.benefits,
-        totalSalary: payslip.grossPay - payslip.deductions - payslip.benefits,
-        earnings: [
-          { name: 'Basic Salary', amount: payslip.grossPay - payslip.deductions - payslip.benefits },
-          { name: 'Allowances', amount: payslip.benefits },
-        ],
-        deductionsList: [
-          { name: 'Provident Fund', amount: 4000 },
-          { name: 'Tax Deduction', amount: 1000 },
-          { name: 'Health Insurance', amount: null },
-        ],
-        grossSalary: payslip.grossPay,
-        netSalary: payslip.netPay,
-      };
+  const exportModal = (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={exportModalVisible}
+      onRequestClose={() => setExportModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modal}>
+          <Text style={styles.modalTitle}>
+            {selectedPayslip?.employeeName}'s Payslip
+          </Text>
 
-      // Export to Excel
-      await exportPayslipToExcel(payslipData, payslip.employeeName.replace(/\s+/g, '-'));
-      Alert.alert('Success', 'Payslip exported successfully!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to export payslip. Please try again.');
-    }
-  };
+          <Text style={styles.modalSubtitle}>
+            Export as:
+          </Text>
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Payroll Management</Text>
-        <View style={styles.addButtonContainer}>
-          <TouchableOpacity 
-            style={[styles.addButton, styles.exportButton]}
-            onPress={() => Alert.alert('Feature', 'Export to PDF would open here')}
-          >
-            <Text style={styles.addButtonText}>📄 PDF</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.addButton, styles.exportButton]}
-            onPress={() => Alert.alert('Feature', 'Export to Excel would open here')}
-          >
-            <Text style={styles.addButtonText}>📊 Excel</Text>
+          <ScrollView style={styles.modalContent}>
+            <TouchableOpacity
+              style={[styles.exportOption, { backgroundColor: Colors.primary + '20' }]}
+              onPress={() => {
+                setExportFormat('pdf');
+                handleConfirmExport();
+              }}
+            >
+              <Text style={styles.exportIcon}>📄</Text>
+              <View>
+                <Text style={styles.exportTitle}>PDF Format</Text>
+                <Text style={styles.exportDescription}>
+                  Professional formatted report with pay breakdown
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.exportOption, { backgroundColor: Colors.success + '20' }]}
+              onPress={() => {
+                setExportFormat('excel');
+                handleConfirmExport();
+              }}
+            >
+              <Text style={styles.exportIcon}>📊</Text>
+              <View>
+                <Text style={styles.exportTitle}>Excel Format</Text>
+                <Text style={styles.exportDescription}>
+                  Spreadsheet format for data analysis
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.exportOption, { backgroundColor: Colors.primary + '30' }]}
+              onPress={() => {
+                setExportFormat('both');
+                handleConfirmExport();
+              }}
+            >
+              <Text style={styles.exportIcon}>📥</Text>
+              <View>
+                <Text style={styles.exportTitle}>Both Formats</Text>
+                <Text style={styles.exportDescription}>
+                  Download in both PDF and Excel formats
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
+
+          <TouchableOpacity onPress={() => setExportModalVisible(false)}>
+            <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
+    </Modal>
+  );
 
-      <View style={styles.tabContainer}>
+  const handleConfirmExport = async () => {
+    if (!selectedPayslip || !exportFormat) {
+      Alert.alert('Error', 'Please select format and pay period');
+      return;
+    }
+
+    try {
+      // Send notification about payslip generation
+      await sendPayslipNotification(
+        selectedPayslip.employeeName,
+        selectedPayslip.period,
+        selectedPayslip.id
+      );
+
+      // Perform export
+      await exportPayslip(
+        {
+          ...selectedPayslip,
+          employeeId: selectedPayslip.employeeId,
+          deductions: [{ type: 'Provident Fund', amount: selectedPayslip.deductions }],
+          benefits: [{ type: 'Allowances', amount: selectedPayslip.benefits }],
+        },
+        {
+          fileName: selectedPayslip.employeeName.replace(/\s+/g, '_'),
+          exportType: exportFormat,
+          share: true,
+        }
+      );
+
+      setExportModalVisible(false);
+      setSelectedPayslip(null);
+      setExportFormat(null);
+    } catch (error) {
+      console.error('Export failed:', error);
+      Alert.alert('Error', 'Failed to export payslip');
+    }
+  };
+
+  const exportPayslipToExcel = async (payslip: Payslip) => {
+    try {
+      await exportRecord('payslip', payslip, {
+        fileName: payslip.employeeName.replace(/\s+/g, '_'),
+        exportType: 'excel',
+      });
+      Alert.alert('Payslip Exported', 'Excel file created');
+    } catch (error) {
+      Alert.alert('Export Error', 'Failed to export payslip');
+    }
+  };
+
+  const handleLeave = (payslipId: string) => {
+    // Navigate to leave screen
+    router.push('/(app)/leave/index');
+  };
+
+  const handleClockIn = () => {
+    // Navigate to attendance/clock-in
+    Alert.alert('Clock In', 'Attendance time recorded');
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: 'white' }}>
+      {exportModal}
+
+      <StatusBar />
+      <View style={styles.tabs}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'payslips' && { borderBottomWidth: 2, borderColor: Colors.primary }]}
+          style={[styles.tab, activeTab === 'payslips' && styles.activeTab]}
           onPress={() => setActiveTab('payslips')}
         >
-          <Text style={[styles.tabText, activeTab === 'payslips' && { color: Colors.primary, fontWeight: '600' }]}>Payslips</Text>
+          <Text style={[styles.tabText, activeTab === 'payslips' && styles.activeTabText]}>
+            Payslips
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'summary' && { borderBottomWidth: 2, borderColor: Colors.primary }]}
+          style={[styles.tab, activeTab === 'summary' && styles.activeTab]}
           onPress={() => setActiveTab('summary')}
         >
-          <Text style={[styles.tabText, activeTab === 'summary' && { color: Colors.primary, fontWeight: '600' }]}>Summary</Text>
+          <Text style={[styles.tabText, activeTab === 'summary' && styles.activeTabText]}>
+            Salary Summary
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        {activeTab === 'payslips' && payslips.map((payslip) => (
-          <View key={payslip.id} style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardInfo}>
-                <Text style={[styles.employeeName, { color: colors.text }]}>{payslip.employeeName}</Text>
-                <Text style={[styles.employeeDetails, { color: colors.secondaryText }]}>
-                  Period: {payslip.period} | Pay Date: {payslip.payDate}
-                </Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(payslip.status) }]}>
-                <Text style={styles.statusText}>{getStatusText(payslip.status)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardDetails}>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: colors.secondaryText }]}>Gross Pay:</Text>
-                <Text style={[styles.detailValue, { color: colors.primary }]}>
-                  {formatCurrency(payslip.grossPay)}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: colors.secondaryText }]}>Net Pay:</Text>
-                <Text style={[styles.detailValue, { color: colors.primary }]}>
-                  {formatCurrency(payslip.netPay)}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: colors.secondaryText }]}>Deductions:</Text>
-                <Text style={[styles.detailValue, { color: colors.red }]}>
-                  {formatCurrency(payslip.deductions)}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.cardActions}>
+      <ScrollView style={styles.content}>
+        {activeTab === 'payslips' && (
+          <View style={styles.payslipList}>
+            {payslips.map((payslip) => (
               <TouchableOpacity
-                style={[styles.actionButton, styles.downloadButton]}
-                onPress={() => handleExportPayslip(payslip)}
+                key={payslip.id}
+                style={[styles.payslipCard, { backgroundColor: Colors.background }]}
+                onPress={() => {
+                  setSelectedPayslip(payslip);
+                  setExportModalVisible(true);
+                }}
               >
-                <Text style={styles.actionButtonText}>📥 Download Payslip</Text>
+                <View style={styles.payslipHeader}>
+                  <View style={styles.employeeInfo}>
+                    <View style={styles.employeeName}>
+                      <Text style={styles.employeeName}>{payslip.employeeName}</Text>
+                    </View>
+                    <Text style={styles.employeeId}>ID: {payslip.employeeId}</Text>
+                  </View>
+                  <View style={styles.payslipStatus}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(payslip.status) },
+                      ]}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '600' }}>
+                        {getStatusText(payslip.status)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.payslipDetails}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Period:</Text>
+                    <Text style={styles.detailValue}>{payslip.period}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Pay Date:</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(payslip.payDate).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.amountsContainer}>
+                  <View style={styles.amountRow}>
+                    <Text style={styles.amountLabel}>Gross Pay:</Text>
+                    <Text style={styles.amountValue}>{formatCurrency(payslip.grossPay)}</Text>
+                  </View>
+                  <View style={styles.amountRow}>
+                    <Text style={styles.amountLabel}>Deductions:</Text>
+                    <Text style={[styles.amountValue, { color: Colors.danger }]}>
+                      -{formatCurrency(payslip.deductions)}
+                    </Text>
+                  </View>
+                  <View style={styles.amountRow}>
+                    <Text style={styles.amountLabel}>Benefits:</Text>
+                    <Text style={[styles.amountValue, { color: Colors.success }]}>
+                      +{formatCurrency(payslip.benefits)}
+                    </Text>
+                  </View>
+                  <View style={[styles.amountRow, styles.netPayRow]}>
+                    <Text style={styles.amountLabel}>Net Pay:</Text>
+                    <Text style={[styles.amountValue, styles.netPay]}>
+                      {formatCurrency(payslip.netPay)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      handleLeave(payslip.employeeId);
+                    }}
+                  >
+                    <Text style={styles.actionButtonText}>View Payslip</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.pdfButton]}
+                    onPress={() => {
+                      setSelectedPayslip(payslip);
+                      setExportFormat('pdf');
+                    }}
+                  >
+                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>PDF Export</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.excelButton]}
+                    onPress={() => {
+                      exportPayslipToExcel(payslip);
+                    }}
+                  >
+                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>Excel</Text>
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {activeTab === 'summary' && (
+          <View style={styles.summaryCardsContainer}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Total Employees</Text>
+              <Text style={styles.summaryNumber}>15</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Total Payroll</Text>
+              <Text style={styles.summaryNumber}>₹ 675,000</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Average Salary</Text>
+              <Text style={styles.summaryNumber}>₹ 45,000</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Highest Salary</Text>
+              <Text style={styles.summaryNumber}>₹ 65,000</Text>
             </View>
           </View>
-        ))}
-
-        {activeTab === 'summary' && salarySummary.map((record) => (
-          <View key={record.id} style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.employeeName, { color: colors.text }]}>
-                {record.month} {record.year}
-              </Text>
-              <TouchableOpacity style={[styles.viewAllButton, { backgroundColor: colors.primary }]}>
-                <Text style={styles.viewAllButtonText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.summaryGrid}>
-              <View style={[styles.summaryCard, { backgroundColor: colors.background }]}>
-                <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Total Employees</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{record.totalEmployees}</Text>
-              </View>
-              <View style={[styles.summaryCard, { backgroundColor: colors.background }]}>
-                <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Total Payroll</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatCurrency(record.totalPayroll)}</Text>
-              </View>
-              <View style={[styles.summaryCard, { backgroundColor: colors.background }]}>
-                <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Average Salary</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatCurrency(record.averageSalary)}</Text>
-              </View>
-              <View style={[styles.summaryCard, { backgroundColor: colors.background }]}>
-                <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Max Salary</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatCurrency(record.maxSalary)}</Text>
-              </View>
-              <View style={[styles.summaryCard, { backgroundColor: colors.background }]}>
-                <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Min Salary</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatCurrency(record.minSalary)}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
 }
 
-const colors = Colors;
-
-const styles = {
-  container: {
+const styles = StyleSheet.create({
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-start',
   },
-  header: {
+  modal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    marginBottom: 15,
+  },
+  modalContent: {
+    maxHeight: 300,
+    marginBottom: 20,
+  },
+  exportOption: {
+    flexDirection: 'row',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  exportIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  exportTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  exportDescription: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+  },
+  cancelButton: {
+    textAlign: 'center',
+    color: Colors.secondaryText,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  statusBar: {
+    paddingTop: 50,
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 15,
+    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -294,148 +439,188 @@ const styles = {
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: Colors.text,
   },
-  addButtonContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  addButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 10,
-  },
-  addButtonContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  addButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  exportButton: {
-    backgroundColor: Colors.secondary,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  tab: {
-    paddingVertical: 15,
-    marginRight: 30,
-    borderBottomWidth: 2,
-    borderColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 14,
-    color: '#606060',
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-  },
-  card: {
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  employeeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  employeeDetails: {
-    fontSize: 13,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardDetails: {
-    marginBottom: 15,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  detailLabel: {
-    fontSize: 13,
-  },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  cardActions: {
-    marginTop: 10,
-  },
-  actionButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  downloadButton: {
-    backgroundColor: Colors.green,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryCard: {
-    flex: 1,
-    minWidth: '45%',
-    borderRadius: 8,
-    padding: 12,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    marginBottom: 5,
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  viewAllButton: {
+  clockInButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 20,
   },
-  viewAllButtonText: {
+  clockInText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
-};
+  tabs: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 10,
+  },
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 5,
+  },
+  activeTab: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    fontWeight: '600',
+  },
+  activeTabText: {
+    color: '#fff',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  payslipList: {
+    flex: 1,
+  },
+  payslipCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    backgroundColor: '#fff',
+  },
+  payslipHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  employeeInfo: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  employeeId: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+  },
+  payslipStatus: {
+    marginLeft: 8,
+  },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  payslipDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  detailRow: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  amountsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 12,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+  },
+  amountLabel: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+  },
+  amountValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  netPayRow: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 8,
+  },
+  netPay: {
+    fontSize: 18,
+    color: Colors.success,
+    fontWeight: 'bold',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+  },
+  pdfButton: {
+    backgroundColor: Colors.primary,
+  },
+  excelButton: {
+    backgroundColor: Colors.success,
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  summaryCardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    minWidth: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    marginBottom: 8,
+  },
+  summaryNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+});
