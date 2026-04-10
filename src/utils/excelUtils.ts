@@ -1,231 +1,409 @@
-import { WorkBook, WorkSheet, utils, write } from 'xlsx';
-import { downloadFile } from './fileUtils';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import * as XLSX from 'xlsx';
 
-interface AttendanceRecord {
-  id: string;
-  date: string;
-  employeeName: string;
-  employeeId: string;
-  checkIn: string;
-  checkOut: string;
-  workingHours: string;
-  status: 'present' | 'absent' | 'late' | 'half_day';
-  remarks?: string;
-}
-
-interface PerformanceRecord {
+export interface PayslipData {
   id: string;
   employeeName: string;
   employeeId: string;
   period: string;
+  payDate: string;
+  grossPay: number;
+  netPay: number;
+  deductions: Array<{ type: string; amount: number }>;
+  benefits: Array<{ type: string; amount: number }>;
+  allowances: Array<{ type: string; amount: number }>;
+  status: 'paid' | 'pending' | 'late';
+}
+
+export interface AttendanceData {
+  id: string;
+  employeeName: string;
+  employeeId: string;
+  reportDate: string;
+  checkInTime: string;
+  checkOutTime: string;
+  totalWorkingHours: string;
+  status: 'present' | 'absent' | 'late' | 'half_day';
+  remarks?: string;
+}
+
+export interface PerformanceData {
+  id: string;
+  employeeName: string;
+  employeeId: string;
   rating: number;
-  feedback: string;
-  completionStatus: 'completed' | 'in_progress' | 'not_started';
-  goals: string[];
+  period: string;
+  date: string;
+  overall: string;
+  achievements: string[];
+  improvements: string[];
+  comments?: string;
 }
 
 /**
- * Export attendance data to Excel file
+ * Format currency for Excel export
  */
-export const exportAttendanceToExcel = async (
-  attendanceRecords: AttendanceRecord[],
-  fileName: string = 'attendance-report'
-): Promise<void> => {
-  try {
-    const ws: WorkSheet = utils.json_to_sheet(attendanceRecords);
-
-    // Set column widths
-    const wscols = [
-      { wch: 15 }, // id
-      { wch: 15 }, // date
-      { wch: 20 }, // employeeName
-      { wch: 15 }, // employeeId
-      { wch: 20 }, // checkIn
-      { wch: 20 }, // checkOut
-      { wch: 15 }, // workingHours
-      { wch: 15 }, // status
-      { wch: 30 }, // remarks
-    ];
-    ws['!cols'] = wscols;
-
-    const wb: WorkBook = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Attendance');
-
-    const excelBuffer = write(wb, { type: 'array', bookType: 'xlsx' });
-
-    await downloadFile(
-      excelBuffer,
-      `${fileName}-${new Date().toISOString().split('T')[0]}.xlsx`,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-  } catch (error) {
-    console.error('Error exporting attendance to Excel:', error);
-    throw new Error('Failed to export attendance data');
-  }
+export const formatCurrency = (value: number): string => {
+  return value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 /**
- * Export payslip data to Excel file
+ * Export payslips to Excel
  */
-export const exportPayslipToExcel = async (
-  payslipData: any,
-  fileName: string = 'payslip'
-): Promise<void> => {
+export const exportPayslipsToExcel = async (
+  payslips: PayslipData[],
+  fileName: string = 'Payslips'
+): Promise<string> => {
   try {
-    // Prepare earnings data
-    const earnings = payslipData.earnings.map((earn: any) => ({
-      Description: earn.name,
-      Amount: earn.amount,
-    }));
-
-    // Prepare deductions data
-    const deductions = payslipData.deductions.map((ded: any) => ({
-      Description: ded.name,
-      Amount: ded.amount,
-    }));
-
-    // Combine into single sheet
-    const ws: WorkSheet = utils.json_to_sheet([
-      ...earnings,
-      { Description: 'Gross Salary', Amount: payslipData.grossSalary },
-      ...deductions,
-      { Description: 'Total Deductions', Amount: payslipData.totalDeductions },
-      { Description: 'Net Salary', Amount: payslipData.netSalary },
-    ]);
-
-    // Set column widths
-    const wscols = [
-      { wch: 40 }, // Description
-      { wch: 20 }, // Amount
+    // Create worksheet header
+    const header = [
+      'Employee Name',
+      'Employee ID',
+      'Period',
+      'Pay Date',
+      'Gross Pay',
+      'Deductions',
+      'Benefits',
+      'Allowances',
+      'Net Pay',
+      'Status'
     ];
-    ws['!cols'] = wscols;
 
-    const wb: WorkBook = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Payslip');
+    // Create worksheet data
+    const data = payslips.map((payslip) => {
+      const totalDeductions = payslip.deductions.reduce((sum, d) => sum + d.amount, 0);
+      const totalBenefits = payslip.benefits.reduce((sum, b) => sum + b.amount, 0);
+      const totalAllowances = payslip.allowances.reduce((sum, a) => sum + a.amount, 0);
 
-    const excelBuffer = write(wb, { type: 'array', bookType: 'xlsx' });
-
-    await downloadFile(
-      excelBuffer,
-      `${fileName}-${payslipData.employeeId}-${new Date().toISOString().split('T')[0]}.xlsx`,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-  } catch (error) {
-    console.error('Error exporting payslip to Excel:', error);
-    throw new Error('Failed to export payslip data');
-  }
-};
-
-/**
- * Export performance data to Excel file
- */
-export const exportPerformanceToExcel = async (
-  performanceRecords: PerformanceRecord[],
-  fileName: string = 'performance-report'
-): Promise<void> => {
-  try {
-    // Transform data for Excel
-    const excelData = performanceRecords.map((record: PerformanceRecord) => ({
-      'Employee ID': record.employeeId,
-      'Employee Name': record.employeeName,
-      Period: record.period,
-      Rating: record.rating,
-      'Feedback': record.feedback,
-      'Status': record.completionStatus,
-      Goals: record.goals.join('; '),
-    }));
-
-    const ws: WorkSheet = utils.json_to_sheet(excelData);
-
-    // Set column widths
-    const wscols = [
-      { wch: 15 }, // Employee ID
-      { wch: 25 }, // Employee Name
-      { wch: 20 }, // Period
-      { wch: 10 }, // Rating
-      { wch: 50 }, // Feedback
-      { wch: 20 }, // Status
-      { wch: 40 }, // Goals
-    ];
-    ws['!cols'] = wscols;
-
-    const wb: WorkBook = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Performance');
-
-    const excelBuffer = write(wb, { type: 'array', bookType: 'xlsx' });
-
-    await downloadFile(
-      excelBuffer,
-      `${fileName}-${new Date().toISOString().split('T')[0]}.xlsx`,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-  } catch (error) {
-    console.error('Error exporting performance to Excel:', error);
-    throw new Error('Failed to export performance data');
-  }
-};
-
-/**
- * Export multiple records to Excel with multiple sheets
- */
-export const exportMultipleSheetsToExcel = async (
-  sheetData: Array<{ name: string; data: any[] }>
-): Promise<void> => {
-  try {
-    const wb: WorkBook = utils.book_new();
-
-    sheetData.forEach((sheet) => {
-      const ws: WorkSheet = utils.json_to_sheet(sheet.data);
-
-      // Set column widths if data exists
-      if (sheet.data.length > 0) {
-        const colWidths = Object.keys(sheet.data[0]).map((key) => ({
-          wch: Math.max(key.length, ...sheet.data.map((row) => String(row[key]).length)),
-        }));
-        ws['!cols'] = colWidths;
-      }
-
-      utils.book_append_sheet(wb, ws, sheet.name);
+      return [
+        payslip.employeeName,
+        payslip.employeeId,
+        payslip.period,
+        new Date(payslip.payDate).toLocaleDateString(),
+        formatCurrency(payslip.grossPay),
+        formatCurrency(totalDeductions),
+        formatCurrency(totalBenefits),
+        formatCurrency(totalAllowances),
+        formatCurrency(payslip.netPay),
+        payslip.status.toUpperCase()
+      ];
     });
 
-    const excelBuffer = write(wb, { type: 'array', bookType: 'xlsx' });
+    const worksheetData = [header, ...data];
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `export-${timestamp}`;
-
-    await downloadFile(
-      excelBuffer,
-      `${fileName}.xlsx`,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
+    return await writeExcelFile(worksheetData, `${fileName}.xlsx`);
   } catch (error) {
-    console.error('Error exporting multiple sheets to Excel:', error);
-    throw new Error('Failed to export multiple sheets');
+    console.error('Export payslips failed:', error);
+    throw error;
   }
 };
 
 /**
- * Generate summary statistics for Excel export
+ * Export attendance data to Excel
  */
-export const generateSummaryStats = (data: any[]): any => {
-  const totalPresent = data.filter((d) => d.status === 'present').length;
-  const totalAbsent = data.filter((d) => d.status === 'absent').length;
-  const totalLate = data.filter((d) => d.status === 'late').length;
-  const totalHours = data.reduce((sum, d) => sum + parseFloat(d.workingHours || 0), 0);
+export const exportAttendanceToExcel = async (
+  attendance: AttendanceData[],
+  fileName: string = 'Attendance_Report',
+  period?: string
+): Promise<string> => {
+  try {
+    const header = [
+      'Date',
+      'Employee Name',
+      'Employee ID',
+      'Check In',
+      'Check Out',
+      'Working Hours',
+      'Status',
+      'Remarks'
+    ];
 
-  return {
-    'Total Records': data.length,
-    'Present': totalPresent,
-    'Absent': totalAbsent,
-    'Late': totalLate,
-    'Average Hours': (totalHours / data.length).toFixed(2),
-  };
+    const data = attendance.map((record) => [
+      new Date(record.reportDate).toLocaleDateString(),
+      record.employeeName,
+      record.employeeId,
+      record.checkInTime,
+      record.checkOutTime,
+      record.totalWorkingHours,
+      record.status.toUpperCase(),
+      record.remarks || ''
+    ]);
+
+    const worksheetData = [
+      header,
+      ...(period ? [['Period:', period, '', '', '', '', '']] : []),
+      ...data
+    ];
+
+    return await writeExcelFile(worksheetData, `${fileName}.xlsx`);
+  } catch (error) {
+    console.error('Export attendance failed:', error);
+    throw error;
+  }
 };
 
-export default {
-  exportAttendanceToExcel,
-  exportPayslipToExcel,
-  exportPerformanceToExcel,
-  exportMultipleSheetsToExcel,
-  generateSummaryStats,
+/**
+ * Export performance reviews to Excel
+ */
+export const exportPerformanceToExcel = async (
+  performance: PerformanceData[],
+  fileName: string = 'Performance_Reviews'
+): Promise<string> => {
+  try {
+    const header = [
+      'Employee Name',
+      'Employee ID',
+      'Rating (out of 5)',
+      'Period',
+      'Date',
+      'Overall',
+      'Key Achievements',
+      'Areas of Improvement',
+      'Comments'
+    ];
+
+    const data = performance.map((review) => [
+      review.employeeName,
+      review.employeeId,
+      review.rating,
+      review.period,
+      new Date(review.date).toLocaleDateString(),
+      review.overall,
+      review.achievements.join(' | '),
+      review.improvements.join(' | '),
+      review.comments || ''
+    ]);
+
+    const worksheetData = [header, ...data];
+
+    return await writeExcelFile(worksheetData, `${fileName}.xlsx`);
+  } catch (error) {
+    console.error('Export performance failed:', error);
+    throw error;
+  }
 };
+
+/**
+ * Export employee list to Excel
+ */
+export const exportEmployeesToExcel = async (
+  employees: Array<any>,
+  fileName: string = 'Employee_List'
+): Promise<string> => {
+  try {
+    const header = [
+      'Employee ID',
+      'Full Name',
+      'Email',
+      'Phone',
+      'Department',
+      'Designation',
+      'Joining Date',
+      'Salary',
+      'Status',
+      'Manager'
+    ];
+
+    const data = employees.map((emp) => [
+      emp.employeeId,
+      emp.fullName,
+      emp.email || '',
+      emp.phone || '',
+      emp.department || '',
+      emp.designation || '',
+      new Date(emp.joiningDate).toLocaleDateString(),
+      formatCurrency(emp.salary),
+      emp.status?.toUpperCase() || 'ACTIVE',
+      emp.managerName || ''
+    ]);
+
+    const worksheetData = [header, ...data];
+
+    return await writeExcelFile(worksheetData, `${fileName}.xlsx`);
+  } catch (error) {
+    console.error('Export employees failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Export multiple sheets to Excel
+ */
+export const exportMultipleSheetsToExcel = async (
+  sheets: Array<{ name: string; data: any[][] }>,
+  fileName: string = 'HR_Report'
+): Promise<string> => {
+  try {
+    const workbook = XLSX.utils.book_new();
+
+    for (const sheet of sheets) {
+      const worksheet = XLSX.utils.aoa_to_sheet(sheet.data);
+
+      // Set column widths based on data
+      const wscols = sheet.data[0].map((_, i) => ({
+        wch: Math.max(
+          sheet.data.reduce((max, row) => 
+            Math.max(max, (row[i] || '').toString().length), 10)
+        )
+      }));
+      worksheet['!cols'] = wscols;
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
+    }
+
+    return await saveExcelWorkbook(workbook, `${fileName}.xlsx`);
+  } catch (error) {
+    console.error('Export multiple sheets failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Write Excel file and save to device storage
+ */
+async function writeExcelFile(data: any[][], fileName: string): Promise<string> {
+  try {
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Apply basic styling
+    const wscols = data[0].map((_, i) => ({
+      wch: Math.max(data.reduce((max, row) => Math.max(max, (row[i] || '').toString().length), 10))
+    }));
+    ws['!cols'] = wscols;
+
+    // Add header row style
+    const headerRow = data[0].map((_, i) => `A${i+1}`);
+    if (ws['!refs']) {
+      ws['!refs'].expand = {
+        s: { r: 0, c: 0 },
+        e: { r: data.length, c: data[0].length - 1 }
+      };
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+
+    // Generate buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    const base64String = buffer.toString('base64');
+    const filePath = `${Directory.Cache}/${fileName}`;
+
+    // Convert base64 to file
+    await Filesystem.writeFile({
+      path: filePath,
+      data: base64String,
+      directory: Directory.Cache,
+    });
+
+    return filePath;
+  } catch (error) {
+    console.error('Excel file creation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Save Excel workbook to device
+ */
+async function saveExcelWorkbook(workbook: XLSX.WorkBook, fileName: string): Promise<string> {
+  try {
+    const base64String = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+    const filePath = `${Directory.Cache}/${fileName}`;
+
+    await Filesystem.writeFile({
+      path: filePath,
+      data: base64String,
+      directory: Directory.Cache,
+    });
+
+    return filePath;
+  } catch (error) {
+    console.error('Save workbook failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Share Excel file using Share API
+ */
+export const shareExcelFile = async (filePath: string): Promise<boolean> => {
+  try {
+    const { Share } = await import('expo-sharing');
+    const canShare = await Share.isAvailableAsync();
+
+    if (!canShare) {
+      console.warn('Sharing is not available on this device');
+      return false;
+    }
+
+    const shareData = {
+      title: 'HR Report',
+      url: `file://${filePath}`,
+    };
+
+    await Share.shareAsync(shareData.url, {
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      dialogTitle: 'Share Report',
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Share failed:', error);
+    return false;
+  }
+};
+
+/**
+ * Download Excel file to public storage
+ */
+export const downloadExcelFile = async (filePath: string, fileName: string): Promise<string | null> => {
+  try {
+    const destinationPath = `${Directory.Download}/${fileName}`;
+
+    await Filesystem.copy({
+      from: filePath,
+      to: destinationPath,
+    });
+
+    return destinationPath;
+  } catch (error) {
+    console.error('Download failed:', error);
+    return null;
+  }
+};
+
+/**
+ * Generate comprehensive HR report sheet
+ */
+export const generateHROverviewSheet = async (
+  employees: number,
+  attendance: number,
+  leaves: number,
+  performances: number,
+  payslips: number
+): Promise<string> => {
+  try {
+    const sheetData = [
+      ['HR Overview Report', '', '', '', ''],
+      [new Date().toLocaleDateString()],
+      ['', '', '', '', ''],
+      ['Metric', 'Count', '', '', ''],
+      ['Total Employees', employees, '', '', ''],
+      ['Attendance Records', attendance, '', '', ''],
+      ['Leave Requests', leaves, '', '', ''],
+      ['Performance Reviews', performances, '', '', ''],
+      ['Payslips Generated', payslips, '', '', ''],
+      ['', '', '', '', ''],
+      ['Report Generated By', 'HR Manager System', '', '', ''],
+    ];
+
+    return await writeExcelFile(sheetData, 'HR_Overview.xlsx');
+  } catch (error) {
+    console.error('Overview export failed:', error);
+    throw error;
+  }
+};
+
+export { writeExcelFile, saveExcelWorkbook, shareExcelFile, downloadExcelFile };
+export type { PayslipData, AttendanceData, PerformanceData };
