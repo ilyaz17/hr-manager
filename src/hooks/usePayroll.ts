@@ -34,24 +34,37 @@ export function usePayroll() {
     });
   }, []);
 
+  // Bug 5 fix: use setRecords functional update directly to avoid stale closure on addRecord.
+  // Bug 6 fix: skip generation if a record already exists for this employeeId + month (dedup guard).
   const generateFromEmployee = useCallback(
     (emp: { id: string; name: string; designation: string; basicSalary: string; allowance: string; deduction: string }, month: string) => {
-      const basic = parseFloat(emp.basicSalary) || 0;
-      const allowance = parseFloat(emp.allowance) || 0;
-      const deduction = parseFloat(emp.deduction) || 0;
-      const net = basic + allowance - deduction;
-      addRecord({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        designation: emp.designation,
-        month,
-        basicSalary: basic,
-        allowance,
-        deduction,
-        netSalary: net,
+      setRecords((prev) => {
+        const alreadyExists = prev.some(
+          (r) => r.employeeId === emp.id && r.month === month
+        );
+        if (alreadyExists) return prev;
+
+        const basic = parseFloat(emp.basicSalary) || 0;
+        const allowance = parseFloat(emp.allowance) || 0;
+        const deduction = parseFloat(emp.deduction) || 0;
+        const net = basic + allowance - deduction;
+        const newRecord: PayrollRecord = {
+          id: Date.now().toString() + emp.id,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          designation: emp.designation,
+          month,
+          basicSalary: basic,
+          allowance,
+          deduction,
+          netSalary: net,
+        };
+        const updated = [...prev, newRecord];
+        AsyncStorage.setItem(KEY, JSON.stringify(updated));
+        return updated;
       });
     },
-    [addRecord]
+    []
   );
 
   return { records, loading, addRecord, generateFromEmployee };

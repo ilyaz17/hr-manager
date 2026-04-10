@@ -2,9 +2,8 @@ import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../../constants/colors';
 
-function ReportCard({ emoji, title, subtitle, color, bgColor, onPress }: {
-  emoji: string; title: string; subtitle: string;
-  color: string; bgColor: string; onPress: () => void;
+function ReportCard({ emoji, title, subtitle, onPress }: {
+  emoji: string; title: string; subtitle: string; onPress: () => void;
 }) {
   return (
     <TouchableOpacity
@@ -17,7 +16,8 @@ function ReportCard({ emoji, title, subtitle, color, bgColor, onPress }: {
     >
       <View style={{
         width: 52, height: 52, borderRadius: 14,
-        backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center', marginRight: 16,
+        backgroundColor: Colors.primaryLight,
+        alignItems: 'center', justifyContent: 'center', marginRight: 16,
       }}>
         <Text style={{ fontSize: 24 }}>{emoji}</Text>
       </View>
@@ -43,20 +43,17 @@ export default function ReportsIndexScreen() {
         <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>Attendance & Payroll insights</Text>
       </View>
       <View style={{ padding: 16, marginTop: 8 }}>
+        {/* Bug 10 fix: use literal emoji instead of escaped unicode */}
         <ReportCard
-          emoji="\ud83d\uddd3\ufe0f"
+          emoji="🗓️"
           title="Attendance Report"
           subtitle="Daily attendance status per employee"
-          color="#0288D1"
-          bgColor="#E1F5FE"
           onPress={() => router.push('/(app)/reports/attendance')}
         />
         <ReportCard
-          emoji="\ud83d\udcb0"
+          emoji="💰"
           title="Payroll Report"
           subtitle="Monthly salary breakdown & net pay"
-          color="#7B1FA2"
-          bgColor="#F3E5F5"
           onPress={() => router.push('/(app)/reports/payroll')}
         />
       </View>

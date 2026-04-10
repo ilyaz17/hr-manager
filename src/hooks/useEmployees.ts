@@ -39,11 +39,6 @@ export function useEmployees() {
     });
   }, []);
 
-  const save = (data: Employee[]) => {
-    AsyncStorage.setItem(KEY, JSON.stringify(data));
-    setEmployees(data);
-  };
-
   const addEmployee = useCallback((emp: EmployeeInput) => {
     setEmployees((prev) => {
       const updated = [...prev, { ...emp, id: Date.now().toString() }];

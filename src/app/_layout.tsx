@@ -13,7 +13,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
     const inAuth = segments[0] === '(auth)';
-    if (!user && !inAuth) {
+    const inApp = segments[0] === '(app)';
+    if (!user && inApp) {
       router.replace('/(auth)/login');
     } else if (user && inAuth) {
       router.replace('/(app)/dashboard');
@@ -30,6 +31,7 @@ export default function RootLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
     </Stack>

@@ -18,12 +18,15 @@ const EMPTY: EmployeeInput = {
 
 export default function EditEmployeeScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // Bug 9 fix: coerce id to string — useLocalSearchParams can return string | string[]
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { getEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const [form, setForm] = useState<EmployeeInput>(EMPTY);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
     const emp = getEmployee(id);
     if (emp) {
       const { id: _id, ...rest } = emp;
@@ -59,7 +62,6 @@ export default function EditEmployeeScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
-      {/* Header */}
       <View style={{ backgroundColor: Colors.primary, paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
@@ -76,7 +78,6 @@ export default function EditEmployeeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-
         <SectionHeader title="Personal Details" />
         <FormField label="Full Name *" value={form.name} onChangeText={set('name')} />
         <FormField label="Date of Birth" value={form.dob} onChangeText={set('dob')} placeholder="DD/MM/YYYY" />

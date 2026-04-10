@@ -1,7 +1,5 @@
-import { useEffect } from 'react';
-import { Tabs, useRouter } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { Tabs } from 'expo-router';
+import { View, Text } from 'react-native';
 import { Colors } from '../../constants/colors';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
@@ -13,23 +11,6 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 }
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/(auth)/login');
-    }
-  }, [user, loading]);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <Tabs
       screenOptions={{
@@ -50,31 +31,26 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
-        name="dashboard/index"
+        name="dashboard"
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="employees/index"
+        name="employees"
         options={{
           title: 'Employees',
           tabBarIcon: ({ focused }) => <TabIcon emoji="👥" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="reports/index"
+        name="reports"
         options={{
           title: 'Reports',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
         }}
       />
-      {/* Hidden screens — still part of (app) group */}
-      <Tabs.Screen name="employees/add" options={{ href: null }} />
-      <Tabs.Screen name="employees/[id]" options={{ href: null }} />
-      <Tabs.Screen name="reports/attendance" options={{ href: null }} />
-      <Tabs.Screen name="reports/payroll" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Modal, ScrollView, Alert, StatusBar,
+  Modal, ScrollView, Alert, StatusBar, TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEmployees } from '../../../hooks/useEmployees';
@@ -24,22 +24,31 @@ export default function AttendanceReportScreen() {
   const [modal, setModal] = useState(false);
   const [selEmp, setSelEmp] = useState('');
   const [selStatus, setSelStatus] = useState<AttendanceStatus>('Present');
+  // Bug 7 fix: hours is now shown as an editable TextInput in the modal
   const [hours, setHours] = useState('8');
   const today = new Date().toISOString().split('T')[0];
 
   const handleMark = () => {
-    if (!selEmp) { Alert.alert('Select an employee'); return; }
+    if (!selEmp) { Alert.alert('Error', 'Please select an employee.'); return; }
     const emp = employees.find((e) => e.id === selEmp);
     if (!emp) return;
-    addRecord({ employeeId: emp.id, employeeName: emp.name, date: today, status: selStatus, hoursWorked: hours });
+    addRecord({
+      employeeId: emp.id,
+      employeeName: emp.name,
+      date: today,
+      status: selStatus,
+      hoursWorked: hours || '0',
+    });
     setModal(false);
+    setSelEmp('');
+    setHours('8');
+    setSelStatus('Present');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
-      {/* Header */}
       <View style={{ backgroundColor: Colors.primary, paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
@@ -55,7 +64,6 @@ export default function AttendanceReportScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Summary cards */}
       {employees.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12 }}>
           {employees.map((emp) => {
@@ -88,7 +96,6 @@ export default function AttendanceReportScreen() {
         </ScrollView>
       )}
 
-      {/* Records list */}
       <FlatList
         data={[...records].reverse()}
         keyExtractor={(item) => item.id}
@@ -108,7 +115,7 @@ export default function AttendanceReportScreen() {
           }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: '700', color: Colors.textPrimary, fontSize: 14 }}>{item.employeeName}</Text>
-              <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>{item.date} · {item.hoursWorked}h</Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>{item.date} · {item.hoursWorked}h worked</Text>
             </View>
             <View style={{
               backgroundColor: STATUS_COLORS[item.status].bg,
@@ -120,7 +127,6 @@ export default function AttendanceReportScreen() {
         )}
       />
 
-      {/* Mark Attendance Modal */}
       <Modal visible={modal} transparent animationType="slide">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }}>
@@ -160,9 +166,24 @@ export default function AttendanceReportScreen() {
               ))}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+            {/* Bug 7 fix: editable hours worked field */}
+            <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Hours Worked</Text>
+            <TextInput
+              style={{
+                borderWidth: 1, borderColor: Colors.border, borderRadius: Colors.radius,
+                paddingHorizontal: 14, paddingVertical: 11, fontSize: 15,
+                color: Colors.textPrimary, backgroundColor: Colors.background, marginBottom: 16,
+              }}
+              value={hours}
+              onChangeText={setHours}
+              keyboardType="numeric"
+              placeholder="e.g. 8"
+              placeholderTextColor={Colors.textLight}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity
-                onPress={() => setModal(false)}
+                onPress={() => { setModal(false); setSelEmp(''); setHours('8'); setSelStatus('Present'); }}
                 style={{ flex: 1, borderRadius: Colors.radius, borderWidth: 1.5, borderColor: Colors.border, paddingVertical: 13, alignItems: 'center' }}
               >
                 <Text style={{ color: Colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
