@@ -16,22 +16,11 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textLight,
-        tabBarStyle: {
-          backgroundColor: Colors.white,
-          borderTopColor: Colors.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
+        tabBarInactiveTintColor: '#9CA3AF',
       }}
     >
       <Tabs.Screen
-        name="dashboard"
+        name="(app)/index"
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
@@ -45,10 +34,87 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name="onboarding/[id]"
         options={{
-          title: 'Reports',
+          title: 'Onboarding',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🆕" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leave"
+        options={{
+          title: 'Leave',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🌴" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="performance"
+        options={{
+          title: 'Reviews',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⭐" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="training"
+        options={{
+          title: 'Training',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📚" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="goals"
+        options={{
+          title: 'Goals',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🎯" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="teams"
+        options={{
+          title: 'Teams',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏢" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📁" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="surveys"
+        options={{
+          title: 'Surveys',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="attendance"
+        options={{
+          title: 'Attendance',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="✅" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📈" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="payroll"
+        options={{
+          title: 'Payroll',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="💰" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
         }}
       />
     </Tabs>
