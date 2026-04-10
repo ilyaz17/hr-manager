@@ -1,320 +1,218 @@
 import { View, Text, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { useTheme } from '../../context/ThemeProvider';
-import notificationService from '../../notifications/notificationService';
+import { useState, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { useTheme } from '../../constants/ThemeProvider';
+import * as Notifications from 'expo-notifications';
+import { Colors } from '../../constants/colors';
+import { getNotificationStatus, saveNotificationSettings, updateNotificationPreference } from '../../services/notificationService';
 
 interface NotificationPreference {
   id: string;
   title: string;
   description: string;
   enabled: boolean;
-  category: 'push' | 'email' | 'both';
 }
 
-export default function NotificationsScreen() {
+export default function NotificationSettings() {
+  const navigation = useNavigation();
+  const router = useRouter();
   const { colors } = useTheme();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([
+    { id: 'leave_approval', title: 'Leave Approval', description: 'Get notified when leave requests are approved/denied', enabled: true },
+    { id: 'payslip_available', title: 'Payslip Available', description: 'Notify when new payslips are generated', enabled: true },
+    { id: 'performance_review', title: 'Performance Reviews', description: 'Alert about performance review schedules', enabled: true },
+    { id: 'attendance_reminder', title: 'Attendance Reminder', description: 'Daily reminder to clock in/out', enabled: true },
+    { id: 'urgent_updates', title: 'Urgent Updates', description: 'Priority notifications from HR', enabled: true },
+  ]);
 
   useEffect(() => {
-    // Load saved preferences
-    const loadPreferences = async () => {
-      const enabled = await notificationService.getNotificationEnabled();
-      setNotificationsEnabled(enabled);
-      // You can load more preferences from database here
-    };
+    requestPermission();
     loadPreferences();
   }, []);
 
-  const toggleNotifications = async (value: boolean) => {
-    await notificationService.setNotificationEnabled(value);
-    setNotificationsEnabled(value);
+  const requestPermission = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      setPermissionGranted(status === 'granted');
+      
+      if (status === 'granted') {
+        setNotificationsEnabled(true);
+        const token = await Notifications.getExpoPushTokenAsync({
+          projectId: "7c72a518-d2c0-4b7d-8753-93c8dc0020f0",
+        });
+        console.log('Push token:', token.data);
+      }
+    } catch (error) {
+      console.error('Permission request failed:', error);
+    }
   };
 
-  const handleTestNotification = async () => {
-    await notificationService.scheduleNotification({
-      title: 'Test Notification',
-      body: 'This is a test push notification!',
-      sound: true,
-      data: { type: 'test' },
-    });
+  const loadPreferences = async () => {
+    try {
+      const saved = getNotificationStatus();
+      if (saved) {
+        setPreferences(saved);
+      }
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+    }
   };
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+  const handleToggle = (preferenceId: string) => {
+    const updated = preferences.map(pref =>
+      pref.id === preferenceId ? { ...pref, enabled: !pref.enabled } : pref
+    );
+    setPreferences(updated);
+    updateNotificationStatus(preferences[preferences.findIndex(p => p.id === preferenceId)]);
+  };
+
+  const updateNotificationStatus = (preference: NotificationPreference) => {
+    try {
+      saveNotificationSettings(preferences);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  };
+
+  const handleEnableAll = () => {
+    setPreferences(preferences.map(p => ({ ...p, enabled: true })));
+    updateNotificationStatus(preferences[0]);
+  };
+
+  const handleDisableAll = () => {
+    setPreferences(preferences.map(p => ({ ...p, enabled: false })));
+    updateNotificationSettings(preferences[0]);
+  };
+
+  const renderPreference = (preference: NotificationPreference) => (
+    <View style={{ backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>
+            {preference.title}
+          </Text>
+          <Text style={{ fontSize: 14, color: colors.secondaryText }}>
+            {preference.description}
+          </Text>
+        </View>
+        <Switch
+          trackColor={{ false: colors.border, true: colors.primary + '40' }}
+          thumbColor={preference.enabled ? colors.primary : colors.border}
+          value={preference.enabled}
+          onValueChange={() => handleToggle(preference.id)}
+        />
       </View>
+    </View>
+  );
 
-      <ScrollView style={styles.scrollView}>
-        {/* Notifications Toggle */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
+  if (!permissionGranted) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, padding: 20, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: 10 }}>
+          Notifications Permission Required
+        </Text>
+        <Text style={{ fontSize: 14, textAlign: 'center', color: colors.secondaryText, marginBottom: 20 }}>
+          Please enable notifications to receive important updates from the HR system
+        </Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.primary,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 8,
+          }}
+          onPress={requestPermission}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600' }}>
             Enable Notifications
           </Text>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={toggleNotifications}
-            trackColor={{ false: colors.secondaryText, true: colors.primary }}
-            thumbColor="#fff"
-          />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ paddingTop: 50, backgroundColor: colors.card, paddingHorizontal: 20, paddingBottom: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.text }}>
+          Notifications
+        </Text>
+      </View>
+
+      <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginVertical: 20 }}>
+          Notification Settings
+        </Text>
+
+        <View style={{ backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>
+                Global Notifications
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.secondaryText }}>
+                Turn on or off all notifications
+              </Text>
+            </View>
+            <Switch
+              trackColor={{ false: colors.border, true: colors.primary + '40' }}
+              thumbColor={notificationsEnabled ? colors.primary : colors.border}
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+            />
+          </View>
         </View>
 
-        {/* Sound Toggle */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Notification Sound
-          </Text>
-          <Switch
-            value={soundEnabled}
-            onValueChange={setSoundEnabled}
-            trackColor={{ false: colors.secondaryText, true: colors.primary }}
-            thumbColor="#fff"
-          />
-          <Text style={[styles.cardDescription, { color: colors.secondaryText }]}>
-            Play sound for all notifications
-          </Text>
+        <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginRight: 10 }}
+            onPress={handleEnableAll}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Enable All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: colors.border, padding: 12, borderRadius: 8, alignItems: 'center', marginLeft: 10 }}
+            onPress={handleDisableAll}
+          >
+            <Text style={{ color: colors.text, fontWeight: '600' }}>Disable All</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Push Notifications */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Push Notifications
-          </Text>
-          <Switch
-            value={pushEnabled}
-            onValueChange={setPushEnabled}
-            trackColor={{ false: colors.secondaryText, true: colors.primary }}
-            thumbColor="#fff"
-          />
-          <Text style={[styles.cardDescription, { color: colors.secondaryText }]}>
-            Receive push notifications on your device
-          </Text>
-        </View>
-
-        {/* Email Notifications */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Email Notifications
-          </Text>
-          <Switch
-            value={emailEnabled}
-            onValueChange={setEmailEnabled}
-            trackColor={{ false: colors.secondaryText, true: colors.primary }}
-            thumbColor="#fff"
-          />
-          <Text style={[styles.cardDescription, { color: colors.secondaryText }]}>
-            Receive important updates via email
-          </Text>
-        </View>
-
-        {/* Notification Types */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 10 }}>
           Notification Types
         </Text>
 
-        {notificationTypes.map((type) => (
-          <View key={type.id} style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardInfo}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>
-                  {type.title}
-                </Text>
-                <Text style={[styles.cardDescription, { color: colors.secondaryText }]}>
-                  {type.description}
-                </Text>
-              </View>
-              <View style={styles.typeBadges}>
-                {type.category === 'push' && (
-                  <View style={[styles.badge, styles.badgePush]}>
-                    <Text style={styles.badgeText}>Push</Text>
-                  </View>
-                )}
-                {type.category === 'email' && (
-                  <View style={[styles.badge, styles.badgeEmail]}>
-                    <Text style={styles.badgeText}>Email</Text>
-                  </View>
-                )}
-                {type.category === 'both' && (
-                  <>
-                    <View style={[styles.badge, styles.badgePush]}>
-                      <Text style={styles.badgeText}>Push</Text>
-                    </View>
-                    <View style={[styles.badge, styles.badgeEmail]}>
-                      <Text style={styles.badgeText}>Email</Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            </View>
-            <Switch
-              value={type.enabled}
-              onValueChange={() => {/* Toggle preference in database */}}
-              trackColor={{ false: colors.secondaryText, true: colors.primary }}
-              thumbColor="#fff"
-            />
-          </View>
+        {preferences.map(preference => (
+          <View key={preference.id}>{renderPreference(preference)}</View>
         ))}
 
-        {/* Test Button */}
-        <TouchableOpacity
-          style={[styles.testButton, { backgroundColor: colors.primary }]}
-          onPress={handleTestNotification}
-        >
-          <Text style={styles.testButtonText}>Send Test Notification</Text>
-        </TouchableOpacity>
+        <View style={{ backgroundColor: colors.border, padding: 16, borderRadius: 12, margin: 20 }}>
+          <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600', marginBottom: 8 }}>
+            ℹ️ How Notifications Work
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.secondaryText, lineHeight: 20 }}>
+            Push notifications will alert you about important HR events like leave approvals,
+            new payslips, and performance reviews. You can customize which types of
+            notifications you want to receive.
+          </Text>
+        </View>
 
-        <Text style={[styles.footerText, { color: colors.secondaryText }]}>
-          Notifications will appear in real-time when enabled
-        </Text>
+        <View style={{ marginBottom: 40 }}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 10 }}>
+            Notification Sound
+          </Text>
+          <Switch
+            trackColor={{ false: colors.border, true: colors.primary + '40' }}
+            thumbColor={notificationsEnabled ? colors.primary : colors.border}
+            value={true}
+            onValueChange={() => {}}
+          />
+        </View>
       </ScrollView>
     </View>
   );
 }
-
-const notificationTypes: NotificationPreference[] = [
-  {
-    id: '1',
-    title: 'Leave Approvals',
-    description: 'Get notified when your leave request is approved or rejected',
-    enabled: true,
-    category: 'both',
-  },
-  {
-    id: '2',
-    title: 'Salary Slips',
-    description: 'Receive your payslip as soon as it is generated',
-    enabled: true,
-    category: 'both',
-  },
-  {
-    id: '3',
-    title: 'Performance Reviews',
-    description: 'Get alerts when performance reviews are scheduled or completed',
-    enabled: true,
-    category: 'push',
-  },
-  {
-    id: '4',
-    title: 'Training Updates',
-    description: 'Updates about new training courses and completion reminders',
-    enabled: true,
-    category: 'push',
-  },
-  {
-    id: '5',
-    title: 'Survey Invitations',
-    description: 'Get invited to employee satisfaction surveys',
-    enabled: true,
-    category: 'push',
-  },
-  {
-    id: '6',
-    title: 'Attendance Alerts',
-    description: 'Alerts for early leave, late arrival, or attendance issues',
-    enabled: true,
-    category: 'push',
-  },
-  {
-    id: '7',
-    title: 'Document Reminders',
-    description: 'Reminders to upload or update required documents',
-    enabled: true,
-    category: 'push',
-  },
-  {
-    id: '8',
-    title: 'System Updates',
-    description: 'Important updates about the HR Manager app',
-    enabled: true,
-    category: 'both',
-  },
-];
-
-const styles = {
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 15,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-  },
-  card: {
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 13,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  typeBadges: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  badgePush: {
-    backgroundColor: '#5A6BD8',
-  },
-  badgeEmail: {
-    backgroundColor: '#43A047',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  testButton: {
-    backgroundColor: '#3F51B5',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  testButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerText: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-};
