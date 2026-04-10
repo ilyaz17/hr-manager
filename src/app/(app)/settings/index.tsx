@@ -1,16 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/colors';
-
-interface ProfileData {
-  name: string;
-  email: string;
-  role: string;
-  department: string;
-  joinDate: string;
-  avatar: string;
-}
 
 interface NotificationSetting {
   id: string;
@@ -20,353 +11,362 @@ interface NotificationSetting {
   type: 'push' | 'email';
 }
 
-interface Preference {
-  id: string;
-  title: string;
-  value: boolean;
-  description: string;
-}
-
-const profileData: ProfileData = {
-  name: 'John Doe',
-  email: 'john.doe@company.com',
-  role: 'Senior Developer',
-  department: 'Engineering',
-  joinDate: '2026-04-01',
-  avatar: 'JD',
-};
-
-const notifications: NotificationSetting[] = [
-  {
-    id: '1',
-    title: 'Push Notifications',
-    description: 'Receive push notifications for important updates',
-    enabled: true,
-    type: 'push',
-  },
-  {
-    id: '2',
-    title: 'Email Notifications',
-    description: 'Receive email updates about HR matters',
-    enabled: true,
-    type: 'email',
-  },
-  {
-    id: '3',
-    title: 'Leave Approvals',
-    description: 'Get notified when your leave is approved',
-    enabled: true,
-    type: 'push',
-  },
-  {
-    id: '4',
-    title: 'Attendance Alerts',
-    description: 'Alerts for late clock-in or missed work',
-    enabled: false,
-    type: 'push',
-  },
-  {
-    id: '5',
-    title: 'Survey Reminders',
-    description: 'Reminders to complete employee surveys',
-    enabled: true,
-    type: 'email',
-  },
-  {
-    id: '6',
-    title: 'Performance Reviews',
-    description: 'Notifications about review schedules and updates',
-    enabled: true,
-    type: 'push',
-  },
-];
-
-const preferences: Preference[] = [
-  {
-    id: '1',
-    title: 'Dark Mode',
-    value: false,
-    description: 'Use dark theme for the app',
-  },
-  {
-    id: '2',
-    title: 'Language',
-    value: true,
-    description: 'Select app language (English)',
-  },
-  {
-    id: '3',
-    title: 'Auto-Dark Mode',
-    value: false,
-    description: 'Automatically switch to dark mode at sunset',
-  },
-  {
-    id: '4',
-    title: 'Auto-Sign Out',
-    value: false,
-    description: 'Automatically sign out after 30 minutes of inactivity',
-  },
-];
-
 export default function SettingsScreen() {
-  const [notificationsList, setNotificationsList] = useState<NotificationSetting[]>(notifications);
-  const [preferencesList, setPreferencesList] = useState<Preference[]>(preferences);
+  const [notifications, setNotifications] = useState<NotificationSetting[]>([
+    { id: '1', title: 'Push Notifications', description: 'Receive push notifications for important updates', enabled: true, type: 'push' },
+    { id: '2', title: 'Email Notifications', description: 'Get daily and weekly email digests', enabled: true, type: 'email' },
+    { id: '3', title: 'Leave Approvals', description: 'Notify when your leave requests are approved', enabled: true, type: 'push' },
+    { id: '4', title: 'Performance Reviews', description: 'Alert when performance reviews are scheduled', enabled: false, type: 'email' },
+    { id: '5', title: 'Training Updates', description: 'Updates about new training courses', enabled: true, type: 'push' },
+    { id: '6', title: 'Survey Invitations', description: 'Get invited to employee surveys', enabled: true, type: 'push' },
+  ]);
 
-  const leavePortal = () => {
-    router.push('/leave');
+  const [prefDarkMode, setPrefDarkMode] = useState(false);
+  const [prefLanguage, setPrefLanguage] = useState('English');
+  const [prefAutoDark, setPrefAutoDark] = useState(true);
+
+  const toggleNotification = (id: string) => {
+    setNotifications(notifications.map(n => 
+      n.id === id ? { ...n, enabled: !n.enabled } : n
+    ));
   };
 
-  const handleNotificationToggle = (id: string) => {
-    setNotificationsList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, enabled: !item.enabled } : item))
-    );
-  };
-
-  const handlePreferenceToggle = (id: string) => {
-    setPreferencesList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, value: !item.value } : item))
-    );
-  };
-
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => Alert.alert('Signed Out', 'You have been signed out successfully.'),
-      },
+      { text: 'Logout', style: 'destructive', onPress: () => router.push('/(auth)/login') },
     ]);
   };
 
-  const handleChangePassword = () => {
-    Alert.alert('Change Password', 'Password change functionality would open here.');
+  const handlePasswordChange = () => {
+    Alert.alert('Password Change', 'Password change would open here');
   };
 
-  const handleEditProfile = () => {
-    Alert.alert('Edit Profile', 'Profile edit functionality would open here.');
-  };
-
-  const handleSecuritySettings = () => {
-    Alert.alert('Security', 'Two-factor authentication and security settings would open here.');
-  };
-
-  const leavePortal = () => {
-    router.push('/leave');
+  const handleTwoFactor = () => {
+    Alert.alert('2FA Settings', 'Two-factor authentication setup would open here');
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* Header */}
-      <View style={{ backgroundColor: Colors.primary, padding: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }}>
-        <TouchableOpacity onPress={leavePortal}>
-          <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
-        </TouchableOpacity>
-        <View style={{ marginTop: 16 }}>
-          <Text style={{ color: '#fff', fontSize: 14 }}>Settings</Text>
-          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 8 }}>
-            Preferences
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      {/* Profile Section */}
-      <View style={{ padding: 20, backgroundColor: Colors.background, marginBottom: 20 }}>
-        <View style={{ backgroundColor: Colors.card, padding: 16, borderRadius: 16, alignItems: 'center' }}>
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: '#3B82F620',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ color: '#3B82F6', fontSize: 36, fontWeight: 'bold' }}>{profileData.avatar}</Text>
+      <ScrollView style={styles.scrollView}>
+        <Text style={styles.sectionTitle}>Profile</Text>
+        <View style={styles.profileCard}>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.avatarText}>JS</Text>
           </View>
-          <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 20 }}>{profileData.name}</Text>
-          <Text style={{ color: Colors.text70, fontSize: 14, marginTop: 2 }}>{profileData.email}</Text>
-          <Text style={{ color: Colors.text70, fontSize: 12, marginTop: 4 }}>
-            {profileData.role} • {profileData.department}
-          </Text>
-          <Text style={{ color: Colors.text70, fontSize: 11, marginTop: 4 }}>Joined: {profileData.joinDate}</Text>
-
-          <TouchableOpacity
-            onPress={handleEditProfile}
-            style={{
-              marginTop: 16,
-              backgroundColor: '#3B82F6',
-              padding: 12,
-              borderRadius: 8,
-              minWidth: 150,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Edit Profile</Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>John Smith</Text>
+            <Text style={styles.profileEmail}>john.smith@company.com</Text>
+            <Text style={styles.profileRole}>HR Manager</Text>
+          </View>
+          <TouchableOpacity style={styles.editButton}>
+            <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Notification Settings */}
-      <View style={{ padding: 20, backgroundColor: Colors.card, marginBottom: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 12 }}>
-          Notifications
-        </Text>
-        <View style={{ gap: 16 }}>
-          {notificationsList.map((notification) => (
-            <View key={notification.id}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <View>
-                  <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>{notification.title}</Text>
-                  <Text style={{ color: Colors.text70, fontSize: 11 }}>{notification.description}</Text>
-                </View>
-                <Switch
-                  value={notification.enabled}
-                  onValueChange={() => handleNotificationToggle(notification.id)}
-                  trackColor={{ false: '#d1d5db', true: '#3B82F6' }}
-                  thumbColor={notification.enabled ? '#fff' : '#9CA3AF'}
-                />
-              </View>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        {notifications.map((notification) => (
+          <View key={notification.id} style={styles.notificationItem}>
+            <View style={styles.notificationInfo}>
+              <Text style={styles.notificationTitle}>{notification.title}</Text>
+              <Text style={styles.notificationDescription}>{notification.description}</Text>
             </View>
-          ))}
+            <Switch
+              value={notification.enabled}
+              onValueChange={() => toggleNotification(notification.id)}
+              trackColor={{ false: Colors.gray, true: Colors.primary }}
+              thumbColor={notification.enabled ? '#fff' : '#fff'}
+            />
+          </View>
+        ))}
+
+        <Text style={styles.sectionTitle}>Preferences</Text>
+        <View style={styles.preferenceCard}>
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceInfo}>
+              <Text style={styles.preferenceTitle}>Dark Mode</Text>
+              <Text style={styles.preferenceDescription}>Enable dark theme for the app</Text>
+            </View>
+            <Switch
+              value={prefDarkMode}
+              onValueChange={setPrefDarkMode}
+              trackColor={{ false: Colors.gray, true: Colors.primary }}
+              thumbColor={prefDarkMode ? '#fff' : '#fff'}
+            />
+          </View>
+
+          <View style={styles.preferenceDivider} />
+
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceInfo}>
+              <Text style={styles.preferenceTitle}>Auto Dark Mode</Text>
+              <Text style={styles.preferenceDescription}>Automatically enable dark mode at sunset</Text>
+            </View>
+            <Switch
+              value={prefAutoDark}
+              onValueChange={setPrefAutoDark}
+              trackColor={{ false: Colors.gray, true: Colors.primary }}
+              thumbColor={prefAutoDark ? '#fff' : '#fff'}
+            />
+          </View>
+
+          <View style={styles.preferenceDivider} />
+
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceInfo}>
+              <Text style={styles.preferenceTitle}>Language</Text>
+              <Text style={styles.preferenceDescription}>Select your preferred language</Text>
+            </View>
+            <TouchableOpacity style={styles.languageButton}>
+              <Text style={styles.languageButtonText}>{prefLanguage}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Preferences */}
-      <View style={{ padding: 20, backgroundColor: Colors.card, marginBottom: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 12 }}>
-          Preferences
-        </Text>
-        <View style={{ gap: 16 }}>
-          {preferencesList.map((preference) => (
-            <View key={preference.id}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <View>
-                  <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>{preference.title}</Text>
-                  <Text style={{ color: Colors.text70, fontSize: 11 }}>{preference.description}</Text>
-                </View>
-                <Switch
-                  value={preference.value}
-                  onValueChange={() => handlePreferenceToggle(preference.id)}
-                  trackColor={{ false: '#d1d5db', true: '#10B981' }}
-                  thumbColor={preference.value ? '#fff' : '#9CA3AF'}
-                />
-              </View>
+        <Text style={styles.sectionTitle}>Security</Text>
+        <View style={styles.preferenceCard}>
+          <TouchableOpacity style={styles.securityItem} onPress={handlePasswordChange}>
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>Change Password</Text>
+              <Text style={styles.securityDescription}>Update your current password</Text>
             </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Security Settings */}
-      <View style={{ padding: 20, backgroundColor: Colors.card, marginBottom: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 12 }}>
-          Security
-        </Text>
-        <View style={{ gap: 12 }}>
-          <TouchableOpacity
-            onPress={handleChangePassword}
-            style={{
-              backgroundColor: Colors.background,
-              padding: 16,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#F59E0B20', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#F59E0B', fontSize: 18 }}>🔒</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>Change Password</Text>
-              <Text style={{ color: Colors.text70, fontSize: 12 }}>Update your password</Text>
-            </View>
-            <Text style={{ color: Colors.text70 }}>›</Text>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={handleSecuritySettings}
-            style={{
-              backgroundColor: Colors.background,
-              padding: 16,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#8B5CF620', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#8B5CF6', fontSize: 18 }}>🛡️</Text>
+          <View style={styles.preferenceDivider} />
+
+          <TouchableOpacity style={styles.securityItem} onPress={handleTwoFactor}>
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>Two-Factor Authentication</Text>
+              <Text style={styles.securityDescription}>Add extra security to your account</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>Security Settings</Text>
-              <Text style={{ color: Colors.text70, fontSize: 12 }}>Two-factor auth & login history</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <View style={styles.preferenceDivider} />
+
+          <TouchableOpacity style={styles.securityItem} onPress={() => Alert.alert('Support', 'Help center would open here')}>
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>Help & Support</Text>
+              <Text style={styles.securityDescription}>Get help from HR support team</Text>
             </View>
-            <Text style={{ color: Colors.text70 }}>›</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <View style={styles.preferenceDivider} />
+
+          <TouchableOpacity style={styles.securityItem} onPress={() => Alert.alert('About', 'HR Manager v1.0.0')}>
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>About</Text>
+              <Text style={styles.securityDescription}>Version 1.0.0</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Support Section */}
-      <View style={{ padding: 20, backgroundColor: Colors.card, marginBottom: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 12 }}>
-          Support
-        </Text>
-        <View style={{ gap: 12 }}>
-          <TouchableOpacity
-            style={{
-              backgroundColor: Colors.background,
-              padding: 16,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#10B98120', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#10B981', fontSize: 18 }}>💬</Text>
-            </View>
-            <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>Help Center</Text>
-            <Text style={{ color: Colors.text70, fontSize: 12, marginLeft: 'auto' }}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              backgroundColor: Colors.background,
-              padding: 16,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#EF444420', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#EF4444', fontSize: 18 }}>ℹ️</Text>
-            </View>
-            <Text style={{ color: Colors.text, fontWeight: '600', fontSize: 14 }}>About</Text>
-            <Text style={{ color: Colors.text70, fontSize: 12, marginLeft: 'auto' }}>v1.0.0 ›</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Sign Out Button */}
-      <View style={{ padding: 20 }}>
         <TouchableOpacity
-          onPress={handleSignOut}
-          style={{
-            backgroundColor: '#EF444420',
-            padding: 16,
-            borderRadius: 12,
-            alignItems: 'center',
-            borderWidth: 1,
-            borderColor: '#EF4444',
-          }}
+          style={[styles.logoutButton, { backgroundColor: Colors.red }]}
+          onPress={handleLogout}
         >
-          <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 16 }}>Sign Out</Text>
+          <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        <Text style={styles.footerText}>HR Manager © 2026</Text>
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+    backgroundColor: Colors.card,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  profileCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 5,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    marginBottom: 3,
+  },
+  profileRole: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  editButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+  },
+  notificationInfo: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  notificationDescription: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+  },
+  preferenceCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  preferenceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+  },
+  preferenceInfo: {
+    flex: 1,
+  },
+  preferenceTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  preferenceDescription: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+  },
+  preferenceDivider: {
+    height: 1,
+    backgroundColor: Colors.gray,
+    marginLeft: 15,
+  },
+  languageButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  languageButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  securityItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+  },
+  securityInfo: {
+    flex: 1,
+  },
+  securityTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  securityDescription: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+  },
+  chevron: {
+    fontSize: 24,
+    color: Colors.secondaryText,
+  },
+  logoutButton: {
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footerText: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 30,
+  },
+};
